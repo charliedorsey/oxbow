@@ -1,0 +1,76 @@
+name: gate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.8", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Install built wheel into a clean venv
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/oxbow-venv"
+          "$RUNNER_TEMP/oxbow-venv/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/oxbow-venv/bin/python" -m pip install dist/*.whl
+          "$RUNNER_TEMP/oxbow-venv/bin/oxbow" selftest
+
+      - name: Repository tests against installed wheel
+        shell: bash
+        run: |
+          for test_file in tests/test_*.py; do
+            echo "== $test_file =="
+            "$RUNNER_TEMP/oxbow-venv/bin/python" "$test_file"
+          done
+
+      - name: README product path
+        shell: bash
+        run: |
+          OXBOW="$RUNNER_TEMP/oxbow-venv/bin/oxbow"
+          PY="$RUNNER_TEMP/oxbow-venv/bin/python"
+          "$OXBOW" bundle health examples/tiny-handoff
+          "$OXBOW" ship examples/tiny-handoff -o "$RUNNER_TEMP/tiny.oxb.py" --data-out "$RUNNER_TEMP/tiny.oxb"
+          "$PY" "$RUNNER_TEMP/tiny.oxb.py" --verify
+          "$PY" "$RUNNER_TEMP/tiny.oxb.py" --tour
+          "$PY" "$RUNNER_TEMP/tiny.oxb.py" --cat HANDOFF.md
+          "$OXBOW" verify "$RUNNER_TEMP/tiny.oxb.py"
+          "$OXBOW" ls "$RUNNER_TEMP/tiny.oxb.py"
+          "$OXBOW" extract "$RUNNER_TEMP/tiny.oxb.py" -d "$RUNNER_TEMP/tiny-unpacked"
+          cmp examples/tiny-handoff/data/tasks.txt "$RUNNER_TEMP/tiny-unpacked/data/tasks.txt"
+
+      - name: Signed action-mode path
+        shell: bash
+        run: |
+          OXBOW="$RUNNER_TEMP/oxbow-venv/bin/oxbow"
+          PY="$RUNNER_TEMP/oxbow-venv/bin/python"
+          "$OXBOW" bundle keygen -o "$RUNNER_TEMP/test-key.json"
+          "$OXBOW" ship examples/tiny-handoff -o "$RUNNER_TEMP/signed.oxb" --key "$RUNNER_TEMP/test-key.json"
+          PUB="$($PY -c 'import json,sys; print(json.load(open(sys.argv[1]))["public_key"])' "$RUNNER_TEMP/test-key.json")"
+          "$OXBOW" verify "$RUNNER_TEMP/signed.oxb" --mode act --sig "$RUNNER_TEMP/signed.oxb.sig" --pubkey "$PUB"
+
+      - name: Frozen v0.1 fixtures
+        shell: bash
+        run: |
+          OXBOW="$RUNNER_TEMP/oxbow-venv/bin/oxbow"
+          "$OXBOW" verify tests/fixtures/v0.1/tiny-handoff.oxb
+          "$OXBOW" verify tests/fixtures/v0.1/tiny-handoff.oxb.py
+          "$OXBOW" verify tests/fixtures/v0.1/tiny-handoff-signed.oxb \
+            --mode act \
+            --sig tests/fixtures/v0.1/tiny-handoff-signed.oxb.sig \
+            --pubkey "$(cat tests/fixtures/v0.1/TEST_PUBLIC_KEY.txt)"

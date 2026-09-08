@@ -1,0 +1,1 @@
+Synthetic request: keep the tool standard-library-only and make the handoff easy for a fresh reader to inspect without reading every file first.

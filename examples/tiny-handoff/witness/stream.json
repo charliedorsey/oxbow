@@ -1,0 +1,50 @@
+{
+  "created_at": "2026-01-01T00:00:00Z",
+  "derived_index": {
+    "open_overhang_by_record": {
+      "rec_format_review": [
+        "Decide whether blank owners become null or remain empty strings."
+      ]
+    },
+    "packet_ids": [
+      "pkt_format_review"
+    ],
+    "record_count": 1,
+    "records_with_third_party_context": []
+  },
+  "format": "oxbow-witness-stream-v1",
+  "name": "Tiny relay demo",
+  "records": [
+    {
+      "format": "oxbow-witness-record-v1",
+      "ingest_order": 1,
+      "ingest_timestamp": "2026-01-01T00:01:00Z",
+      "packet": {
+        "overhang": [
+          "Decide whether blank owners become null or remain empty strings."
+        ],
+        "packet_id": "pkt_format_review",
+        "packet_type": "decision-review",
+        "reads": [
+          {
+            "name": "design_direction",
+            "value": "The pipe format is sufficient for this deliberately tiny demonstration."
+          }
+        ],
+        "self_witness": {
+          "caveat": "This synthetic packet was authored as part of the example and did not observe a real work session.",
+          "drafter_was_party": true
+        },
+        "source": {
+          "description": "The example records that Decision 002 supersedes Decision 001 and leaves blank-owner behavior unresolved."
+        },
+        "third_party_context": {
+          "handling_note": "none",
+          "present": false
+        }
+      },
+      "record_id": "rec_format_review"
+    }
+  ],
+  "stream_id": "wtn_tiny_relay_demo"
+}

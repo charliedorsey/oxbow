@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "oxbow_witness_packet_v1",
+  "type": "object",
+  "required": [
+    "packet_id",
+    "packet_type",
+    "source",
+    "reads",
+    "overhang",
+    "self_witness",
+    "third_party_context"
+  ],
+  "properties": {
+    "packet_id": {"type": "string"},
+    "packet_type": {"type": "string"},
+    "source": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": {"type": "string"},
+        "provenance_notes": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "reads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "value"],
+        "properties": {
+          "name": {"type": "string"},
+          "value": {},
+          "notes": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "overhang": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "self_witness": {
+      "type": "object",
+      "required": ["drafter_was_party", "caveat"],
+      "properties": {
+        "drafter_was_party": {"type": "boolean"},
+        "caveat": {"type": "string"}
+      }
+    },
+    "third_party_context": {
+      "type": "object",
+      "required": ["present", "handling_note"],
+      "properties": {
+        "present": {"type": "boolean"},
+        "handling_note": {"type": "string"}
+      }
+    }
+  }
+}
