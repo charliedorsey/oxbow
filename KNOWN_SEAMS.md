@@ -24,4 +24,6 @@ The committed files in `prebuilt/` are generated `.oxb.py` wrappers for convenie
 
 `prebuilt/SHA256SUMS` is useful for reproducibility and transport checks. A checksum obtained from the same untrusted channel as the artifact is not independent proof of authorship or authenticity.
 
+Portable prebuilt reproducibility is defined on verified decoded contents and canonical generated-wrapper structure, not exact compressed bytes. Different Python/liblzma environments may produce different valid raw-LZMA2 byte streams for the same decoded file set; `--check-bytes` is therefore a same-toolchain release check, not a cross-platform contract.
+
 The generator intentionally selects tracked repository paths rather than sweeping the working tree. The full profile excludes `prebuilt/` itself, so generated wrappers cannot recursively ingest prior generated wrappers.

@@ -1,6 +1,6 @@
 # Oxbow status
 
-Current state: **v0.1 release candidate rc3 — prebuilt GitHub/model handoff bundles added**.
+Current state: **v0.1 release candidate rc4 — portable prebuilt reproducibility gate fixed**.
 
 Implemented:
 
@@ -13,7 +13,7 @@ Implemented:
 - append-only Witness stream with packet v1 compatibility and richer packet v2;
 - v2 typed reads, basis references, source coverage, structured overhang, claim boundaries, optional weather/audit/lineage, and quick/standard/deep drafting profiles;
 - committed `prebuilt/` tiny, standard, and full self-extracting wrappers for direct GitHub/model handoff;
-- deterministic `tools/build_prebuilt.py --check` regeneration gate plus `SHA256SUMS`;
+- portable semantic `tools/build_prebuilt.py --check` regeneration gate, same-toolchain `--check-bytes`, and `SHA256SUMS`;
 - tiny synthetic example;
 - public README, history, continuity, trust, security, and wire-spec docs;
 - Linux/macOS CI configuration;

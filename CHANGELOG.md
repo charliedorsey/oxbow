@@ -2,6 +2,20 @@
 
 Oxbow follows semantic versioning once the public `v0.1` line is released. Release candidates freeze intended product behavior closely enough that outside-user feedback can be evaluated against a stable object.
 
+## 0.1.0rc4 — 2026-09-09
+
+Portable prebuilt reproducibility check fix.
+
+- Replaced the cross-runtime prebuilt `--check` gate from compressed-wrapper byte equality to semantic payload equality plus canonical generated-wrapper structure.
+- The semantic gate still requires every decoded path and file byte to match regenerated source exactly, verifies both committed and regenerated payloads, checks the generated wrapper shell, and requires `SHA256SUMS` to match the committed download bytes.
+- Added `tools/build_prebuilt.py --check-bytes` as an explicit stronger same-toolchain release-host check when exact compressed representation matters.
+- Documented that Python/liblzma implementations may emit different valid raw-LZMA2 bytes for identical decoded Oxbow contents; compressed-byte identity is not part of the portable Oxbow contract.
+- No OXB wire, manifest, wrapper runtime, signing, Witness, or prebuilt profile-selection semantics changed.
+
+### Release gate still open
+
+`0.1.0rc4` remains a release candidate. The outside-user usability gate is unchanged.
+
 ## 0.1.0rc3 — 2026-09-09
 
 Prebuilt GitHub distribution release candidate.

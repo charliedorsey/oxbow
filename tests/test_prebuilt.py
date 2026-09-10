@@ -1,9 +1,12 @@
 import hashlib
+import importlib.util
 import json
+import lzma
 import os
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -43,7 +46,7 @@ class PrebuiltTests(unittest.TestCase):
         for path in ARTIFACTS.values():
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected[path.name])
 
-    def test_generator_reproduces_committed_artifacts_byte_for_byte(self):
+    def test_generator_reproduces_committed_artifacts_semantically(self):
         cp = subprocess.run(
             [sys.executable, str(ROOT / "tools/build_prebuilt.py"), "--check"],
             cwd=str(ROOT),
@@ -51,7 +54,78 @@ class PrebuiltTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
-        self.assertIn("prebuilt artifacts verified", cp.stdout)
+        self.assertIn("prebuilt artifacts verified semantically", cp.stdout)
+
+    def test_semantic_check_accepts_alternate_valid_lzma2_output(self):
+        spec = importlib.util.spec_from_file_location(
+            "oxbow_build_prebuilt_test", ROOT / "tools/build_prebuilt.py"
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        tracked = module._tracked_paths()
+        version = module._project_version()
+        canonical_blobs = {}
+        canonical_payloads = {}
+        for profile, artifact_name in module.ARTIFACTS:
+            blob, payload, _stat = module._build_one(
+                profile, artifact_name, tracked, version
+            )
+            canonical_blobs[artifact_name] = blob
+            canonical_payloads[artifact_name] = payload
+
+        original_compressor = module.kernel._lzc6
+
+        def alternate_compressor(data):
+            return lzma.compress(
+                data,
+                format=lzma.FORMAT_RAW,
+                filters=[
+                    {
+                        "id": lzma.FILTER_LZMA2,
+                        "dict_size": 8 * 1024 * 1024,
+                        "lc": 3,
+                        "lp": 0,
+                        "pb": 2,
+                        "mode": lzma.MODE_FAST,
+                        "nice_len": 64,
+                        "mf": lzma.MF_HC4,
+                        "depth": 0,
+                    }
+                ],
+            )
+
+        alternate_blobs = {}
+        try:
+            module.kernel._lzc6 = alternate_compressor
+            for profile, artifact_name in module.ARTIFACTS:
+                blob, _payload, _stat = module._build_one(
+                    profile, artifact_name, tracked, version
+                )
+                alternate_blobs[artifact_name] = blob
+        finally:
+            module.kernel._lzc6 = original_compressor
+
+        with tempfile.TemporaryDirectory(dir=str(ROOT)) as td:
+            fake_prebuilt = Path(td)
+            for _profile, artifact_name in module.ARTIFACTS:
+                (fake_prebuilt / artifact_name).write_bytes(
+                    alternate_blobs[artifact_name]
+                )
+            (fake_prebuilt / "SHA256SUMS").write_bytes(
+                module._checksums(alternate_blobs)
+            )
+
+            old_prebuilt = module.PREBUILT
+            module.PREBUILT = fake_prebuilt
+            try:
+                self.assertEqual(
+                    module._semantic_check(canonical_blobs, canonical_payloads), []
+                )
+            finally:
+                module.PREBUILT = old_prebuilt
 
     def test_standalone_and_trusted_nonexecuting_verification(self):
         for name, path in ARTIFACTS.items():

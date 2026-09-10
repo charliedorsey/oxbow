@@ -10,9 +10,14 @@ Run from any directory:
 
     python3 tools/build_prebuilt.py
     python3 tools/build_prebuilt.py --check
+    python3 tools/build_prebuilt.py --check-bytes
 
-``--check`` rebuilds all three wrappers in a temporary directory and requires
-byte-for-byte equality with the committed artifacts and SHA256SUMS file.
+``--check`` rebuilds all three wrappers and requires semantic payload equality
+plus canonical generated-wrapper structure. Compressed OXB bytes may differ
+across Python/liblzma environments while decoding to the same files.
+
+``--check-bytes`` is the stronger same-toolchain release-host check: it requires
+byte-for-byte equality with the committed wrappers.
 """
 from __future__ import annotations
 
@@ -30,6 +35,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from oxbow.bundle import kernel
+from oxbow.bundle.cli import _load_public_payload
 from oxbow.bundle.wrapper import write_wrapper
 
 PREBUILT = ROOT / "prebuilt"
@@ -237,7 +243,12 @@ def _stage_files(stage: Path, selected: Sequence[str], profile: str, version: st
     )
 
 
-def _build_one(profile: str, artifact_name: str, tracked: Sequence[str], version: str) -> Tuple[bytes, Dict[str, int]]:
+def _build_one(
+    profile: str,
+    artifact_name: str,
+    tracked: Sequence[str],
+    version: str,
+) -> Tuple[bytes, bytes, Dict[str, int]]:
     selected = _select(profile, tracked)
     with tempfile.TemporaryDirectory(prefix="oxbow-prebuilt-%s-" % profile) as td:
         td = Path(td)
@@ -254,7 +265,7 @@ def _build_one(profile: str, artifact_name: str, tracked: Sequence[str], version
         wrapper = td / artifact_name
         write_wrapper(payload, wrapper, name="oxbow-%s" % profile, self_check=True)
         data = wrapper.read_bytes()
-        return data, {
+        return data, payload, {
             "source_files": len(selected),
             "payload_files": len(kernel.parse(payload).files),
             "raw_bytes": scan.raw_bytes,
@@ -283,44 +294,163 @@ def _write_owned(path: Path, data: bytes, *, executable: bool = False) -> None:
     os.replace(str(tmp), str(path))
 
 
-def build_all(check: bool) -> int:
+def _verified_mapping(payload: bytes, label: str) -> Dict[str, bytes]:
+    verification = kernel.verify_bundle_bytes(payload)
+    if not verification.get("ok"):
+        raise PrebuiltError("%s failed Oxbow verification: %r" % (label, verification))
+    return kernel.parse(payload).mapping
+
+
+def _mapping_drift(committed: Dict[str, bytes], generated: Dict[str, bytes]) -> str:
+    committed_paths = set(committed)
+    generated_paths = set(generated)
+    missing = sorted(generated_paths - committed_paths)
+    unexpected = sorted(committed_paths - generated_paths)
+    changed = sorted(
+        path
+        for path in committed_paths & generated_paths
+        if committed[path] != generated[path]
+    )
+    parts = []
+    if missing:
+        parts.append("missing=" + ",".join(missing[:5]))
+    if unexpected:
+        parts.append("unexpected=" + ",".join(unexpected[:5]))
+    if changed:
+        parts.append("changed=" + ",".join(changed[:5]))
+    return "; ".join(parts) or "payload mappings differ"
+
+
+def _normalized_wrapper_shell(data: bytes) -> str:
+    """Mask only compressor-dependent generated fields in wrapper source."""
+    try:
+        text = data.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise PrebuiltError("prebuilt wrapper is not UTF-8 text: %s" % exc)
+
+    substitutions = (
+        (r"(?m)^_PACKED_BYTES = [0-9]+$", "_PACKED_BYTES = <payload-bytes>"),
+        (
+            r"(?m)^_PAYLOAD_SHA256 = ['\"][0-9a-f]{64}['\"]$",
+            "_PAYLOAD_SHA256 = <payload-sha256>",
+        ),
+        (
+            r"(?ms)^_PAYLOAD_B85 = '''\n.*?\n'''$",
+            "_PAYLOAD_B85 = <payload-b85>",
+        ),
+    )
+    for pattern, replacement in substitutions:
+        text, count = re.subn(pattern, replacement, text, count=1)
+        if count != 1:
+            raise PrebuiltError("generated wrapper field not found for normalization")
+    return text
+
+
+def _semantic_check(
+    blobs: Dict[str, bytes],
+    payloads: Dict[str, bytes],
+) -> List[str]:
+    failures = []
+    committed_blobs: Dict[str, bytes] = {}
+
+    for _profile, artifact_name in ARTIFACTS:
+        path = PREBUILT / artifact_name
+        if not path.is_file():
+            failures.append("missing %s" % path.relative_to(ROOT))
+            continue
+
+        committed_blob = path.read_bytes()
+        committed_blobs[artifact_name] = committed_blob
+        try:
+            committed_payload = _load_public_payload(str(path))
+            committed_map = _verified_mapping(
+                committed_payload,
+                "committed %s" % path.relative_to(ROOT),
+            )
+            generated_map = _verified_mapping(
+                payloads[artifact_name],
+                "regenerated %s" % artifact_name,
+            )
+            if committed_map != generated_map:
+                failures.append(
+                    "semantic drift %s (%s)"
+                    % (path.relative_to(ROOT), _mapping_drift(committed_map, generated_map))
+                )
+            if _normalized_wrapper_shell(committed_blob) != _normalized_wrapper_shell(blobs[artifact_name]):
+                failures.append("generated wrapper shell drift %s" % path.relative_to(ROOT))
+        except (OSError, PrebuiltError, kernel.KernelError) as exc:
+            failures.append("cannot verify %s: %s" % (path.relative_to(ROOT), exc))
+
+    sums = PREBUILT / "SHA256SUMS"
+    if not sums.is_file():
+        failures.append("missing prebuilt/SHA256SUMS")
+    elif len(committed_blobs) == len(ARTIFACTS):
+        committed_checksums = _checksums(committed_blobs)
+        if sums.read_bytes() != committed_checksums:
+            failures.append("prebuilt/SHA256SUMS does not match committed wrapper bytes")
+    return failures
+
+
+def _byte_check(blobs: Dict[str, bytes]) -> List[str]:
+    failures = []
+    for _profile, artifact_name in ARTIFACTS:
+        path = PREBUILT / artifact_name
+        if not path.is_file():
+            failures.append("missing %s" % path.relative_to(ROOT))
+        elif path.read_bytes() != blobs[artifact_name]:
+            failures.append("byte drift %s" % path.relative_to(ROOT))
+    sums = PREBUILT / "SHA256SUMS"
+    expected_checksums = _checksums(blobs)
+    if not sums.is_file():
+        failures.append("missing prebuilt/SHA256SUMS")
+    elif sums.read_bytes() != expected_checksums:
+        failures.append("byte drift prebuilt/SHA256SUMS")
+    return failures
+
+
+def build_all(check: bool = False, check_bytes: bool = False) -> int:
     version = _project_version()
     tracked = _tracked_paths()
     blobs: Dict[str, bytes] = {}
+    payloads: Dict[str, bytes] = {}
     stats: Dict[str, Dict[str, int]] = {}
 
     for profile, artifact_name in ARTIFACTS:
-        blob, stat = _build_one(profile, artifact_name, tracked, version)
+        blob, payload, stat = _build_one(profile, artifact_name, tracked, version)
         blobs[artifact_name] = blob
+        payloads[artifact_name] = payload
         stats[profile] = stat
 
-    checksum_bytes = _checksums(blobs)
-
-    if check:
-        failures = []
-        for _profile, artifact_name in ARTIFACTS:
-            path = PREBUILT / artifact_name
-            if not path.is_file():
-                failures.append("missing %s" % path.relative_to(ROOT))
-            elif path.read_bytes() != blobs[artifact_name]:
-                failures.append("out of date %s" % path.relative_to(ROOT))
-        sums = PREBUILT / "SHA256SUMS"
-        if not sums.is_file():
-            failures.append("missing prebuilt/SHA256SUMS")
-        elif sums.read_bytes() != checksum_bytes:
-            failures.append("out of date prebuilt/SHA256SUMS")
+    if check or check_bytes:
+        failures = _byte_check(blobs) if check_bytes else _semantic_check(blobs, payloads)
         if failures:
             for msg in failures:
                 print("FAIL: %s" % msg, file=sys.stderr)
-            print("Run: python3 tools/build_prebuilt.py", file=sys.stderr)
+            if check_bytes:
+                print(
+                    "Exact wrapper bytes differ. Rebuild on the release toolchain with: "
+                    "python3 tools/build_prebuilt.py",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    "Semantic prebuilt contents are out of date. Run: "
+                    "python3 tools/build_prebuilt.py",
+                    file=sys.stderr,
+                )
             return 1
     else:
         PREBUILT.mkdir(parents=True, exist_ok=True)
         for _profile, artifact_name in ARTIFACTS:
             _write_owned(PREBUILT / artifact_name, blobs[artifact_name], executable=True)
-        _write_owned(PREBUILT / "SHA256SUMS", checksum_bytes)
+        _write_owned(PREBUILT / "SHA256SUMS", _checksums(blobs))
 
-    verb = "verified" if check else "built"
+    if check_bytes:
+        verb = "verified byte-for-byte"
+    elif check:
+        verb = "verified semantically"
+    else:
+        verb = "built"
     print("prebuilt artifacts %s for Oxbow %s" % (verb, version))
     for profile, artifact_name in ARTIFACTS:
         stat = stats[profile]
@@ -333,14 +463,20 @@ def build_all(check: bool) -> int:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument(
+    checks = ap.add_mutually_exclusive_group()
+    checks.add_argument(
         "--check",
         action="store_true",
-        help="rebuild in temporary storage and require byte-for-byte equality",
+        help="require semantic payload equality and canonical generated-wrapper structure",
+    )
+    checks.add_argument(
+        "--check-bytes",
+        action="store_true",
+        help="same-toolchain release check requiring exact committed wrapper bytes",
     )
     args = ap.parse_args(argv)
     try:
-        return build_all(args.check)
+        return build_all(check=args.check, check_bytes=args.check_bytes)
     except (OSError, PrebuiltError, kernel.KernelError) as exc:
         print("prebuilt build failed: %s" % exc, file=sys.stderr)
         return 1
