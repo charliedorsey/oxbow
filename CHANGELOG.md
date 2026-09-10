@@ -2,6 +2,22 @@
 
 Oxbow follows semantic versioning once the public `v0.1` line is released. Release candidates freeze intended product behavior closely enough that outside-user feedback can be evaluated against a stable object.
 
+## 0.1.0rc3 — 2026-09-09
+
+Prebuilt GitHub distribution release candidate.
+
+- Added top-level `prebuilt/` with tiny, standard, and full self-extracting `.oxb.py` artifacts; standard is the recommended default for direct model handoff.
+- Added `PREBUILT_PROFILE.md` inside each generated payload so a receiving reader can identify the profile, package version, intended use, and exclusions from inside the bundle.
+- Added `tools/build_prebuilt.py` to generate all three wrappers deterministically from tracked public source and `--check` to require byte-for-byte agreement with committed artifacts.
+- Added `prebuilt/SHA256SUMS` as a reproducibility/transport convenience while explicitly preserving the existing distinction between integrity and authentication.
+- Defined explicit tiny/standard allowlists and a full profile consisting of every tracked public repository file except `prebuilt/` itself, preventing recursive self-bundling.
+- Marked prebuilt wrappers as generated for GitHub language/diff presentation and added repository tests for profile contents, integrity, privacy, trusted non-executing inspection, and reproducibility.
+- No OXB wire, wrapper-runtime, signing, manifest, or Witness semantics changed in this release candidate.
+
+### Release gate still open
+
+`0.1.0rc3` remains a release candidate. The outside-user gate from rc2 is unchanged: at least one person outside the development loop should run the documented handoff flow without coaching and report what was confusing before the final public v0.1 release.
+
 ## 0.1.0rc2 — 2026-09-09
 
 Witness packet v2 release candidate.

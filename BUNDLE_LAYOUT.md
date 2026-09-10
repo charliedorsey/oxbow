@@ -4,9 +4,11 @@
 - `src/oxbow/bundle/` — bounded wire/build/verify/wrap/ship implementation.
 - `src/oxbow/witness/` — neutral public append-only Witness format/tooling.
 - `examples/tiny-handoff/` — freshly synthetic five-minute example.
+- `prebuilt/` — committed tiny/standard/full self-extracting `.oxb.py` bundles for direct GitHub/model handoff.
 - `spec/` — normative public wire specification.
 - `docs/` — continuity, trust, history, and outside-user test documentation.
 - `tests/` — repository and compatibility gates plus frozen v0.1 fixtures.
+- `tools/build_prebuilt.py` — deterministic generator/checker for the committed prebuilt artifacts.
 - `compat/rosetta_v5/` — frozen historical reference decoder; not installed and not the public untrusted-data reader.
 - `integrations/` — optional seams; Oxbow core does not require them.
 

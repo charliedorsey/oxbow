@@ -1,5 +1,7 @@
 # Start here
 
+If you want the fastest no-install path, download `prebuilt/oxbow-standard.oxb.py` and start with its `PREBUILT_PROFILE.md` and `START_HERE.md`. Tiny and full variants live beside it in `prebuilt/`.
+
 If you are evaluating Oxbow as a user:
 
 1. read the README's five-minute path;

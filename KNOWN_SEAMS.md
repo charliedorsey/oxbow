@@ -17,3 +17,11 @@ The v0.1 release candidate intentionally leaves these boundaries visible:
 - the final v0.1 product gate is an outside-user trial, not another internal selftest.
 
 The absence of hosted services, encryption, databases, dashboards, model APIs, confidence scoring, and specialist codec competitions is deliberate for v0.1.
+
+## Prebuilt wrappers are distribution artifacts, not a new trust layer
+
+The committed files in `prebuilt/` are generated `.oxb.py` wrappers for convenience. Their embedded Oxbow payloads can verify wire validity, manifest integrity, and handoff conformance, but successful embedded-payload verification does not authenticate arbitrary executable wrapper source. For wrappers obtained from an untrusted channel, use a trusted Oxbow installation for non-executing inspection.
+
+`prebuilt/SHA256SUMS` is useful for reproducibility and transport checks. A checksum obtained from the same untrusted channel as the artifact is not independent proof of authorship or authenticity.
+
+The generator intentionally selects tracked repository paths rather than sweeping the working tree. The full profile excludes `prebuilt/` itself, so generated wrappers cannot recursively ingest prior generated wrappers.

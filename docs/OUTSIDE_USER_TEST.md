@@ -2,6 +2,17 @@
 
 The automated release gate cannot prove that the handoff makes sense to someone who did not build it. Before calling the release `v0.1`, have at least one person outside the project's development loop run this test without coaching beyond this page.
 
+## Prebuilt discovery check
+
+Before installing anything, have the tester open the repository README and ask which ready-made bundle they would choose to hand directly to a model. They should be able to distinguish Tiny, Standard, and Full and identify Standard as the default. If practical, have them run:
+
+```bash
+python3 prebuilt/oxbow-standard.oxb.py --verify
+python3 prebuilt/oxbow-standard.oxb.py --cat PREBUILT_PROFILE.md
+```
+
+Record whether the prebuilt path was obvious without coaching.
+
 ## Tester task
 
 From a fresh checkout:
@@ -65,6 +76,7 @@ Do not explain the intended answers first.
 6. Was `HANDOFF.md` enough structure, too much, or too little?
 7. Did Witness feel optional, or did it look required to use Oxbow?
 8. Did Witness v2's richer fields make the record more understandable, or did they mostly feel like form-filling?
-9. What was the first confusing command or concept?
+9. Was the prebuilt Tiny/Standard/Full choice obvious, and did Standard look like the natural default?
+10. What was the first confusing command or concept?
 
 Record the tester's actual answers before changing the product. The release gate is not “tester eventually succeeded after explanation”; it is whether the documented interface made the intended object legible.

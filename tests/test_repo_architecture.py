@@ -42,6 +42,12 @@ class RepoArchitectureTests(unittest.TestCase):
         for path in ROOT.rglob("*"):
             if not path.is_file() or path.name == "LICENSE" or ".git" in path.parts:
                 continue
+            # Prebuilt wrappers contain base85-encoded payload bytes, where an
+            # accidental text-token match has no semantic meaning. The prebuilt
+            # test suite decodes each payload and applies this privacy check to
+            # its actual source content instead.
+            if "prebuilt" in path.parts and path.name.endswith(".oxb.py"):
+                continue
             # Build backends may materialize legal metadata from LICENSE into
             # generated build/egg-info trees. Those are not canonical source.
             if "build" in path.parts or "dist" in path.parts or any(part.endswith(".egg-info") for part in path.parts):

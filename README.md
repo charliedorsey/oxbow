@@ -11,6 +11,18 @@ A handoff can ship as:
 
 Oxbow preserves bytes and orientation. It does not manufacture memory, identity, or truth.
 
+## Prebuilt bundles — no install required
+
+Want to hand Oxbow directly to a model or inspect a ready-made bundle from GitHub? The repository ships three generated `.oxb.py` artifacts in [`prebuilt/`](prebuilt/):
+
+- [`Tiny`](prebuilt/oxbow-tiny.oxb.py) — front-door docs, Witness v2, and the synthetic tiny example;
+- [`Standard`](prebuilt/oxbow-standard.oxb.py) — **recommended**; docs, wire spec, package source, examples, integrations, and project metadata;
+- [`Full`](prebuilt/oxbow-full.oxb.py) — the complete tracked public repository except the generated `prebuilt/` directory itself.
+
+A receiving model can be told: **“Read this Oxbow bundle. Start with `PREBUILT_PROFILE.md` and `START_HERE.md`.”**
+
+Each wrapper is self-contained and needs only Python for its built-in read/verify/extract paths. For an untrusted wrapper, the existing non-executing inspection guidance below still applies. See [`prebuilt/README.md`](prebuilt/README.md) for profile contents, trust boundaries, checksums, and reproducible rebuild commands.
+
 ## Five-minute path
 
 Install from a checkout:
