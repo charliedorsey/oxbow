@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "oxbow_witness_packet_v2",
+  "type": "object",
+  "required": [
+    "format",
+    "packet_id",
+    "packet_type",
+    "source",
+    "reads",
+    "overhang",
+    "claim_boundary",
+    "self_witness",
+    "third_party_context"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "oxbow-witness-packet-v2"
+    },
+    "packet_id": {
+      "type": "string",
+      "pattern": "^pkt_[A-Za-z0-9][A-Za-z0-9_.-]{2,127}$"
+    },
+    "packet_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "required": ["description", "coverage"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coverage": {
+          "type": "string",
+          "enum": ["full", "selective", "reconstructed", "mixed"]
+        },
+        "provenance_notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["anchor_id", "ref", "description"],
+            "properties": {
+              "anchor_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+              },
+              "ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "reads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["read_id", "name", "status", "scope", "value", "basis"],
+        "properties": {
+          "read_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["observation", "interpretation", "candidate", "promoted", "abstention"]
+          },
+          "scope": {
+            "type": "string",
+            "enum": ["local", "cross_packet", "population"]
+          },
+          "value": {},
+          "basis": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "boundary": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "weather": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "basis", "reason"],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "basis": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "overhang": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["overhang_id", "item", "status"],
+        "properties": {
+          "overhang_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+          },
+          "item": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "blocked", "deferred", "watch"]
+          },
+          "next_test": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "claim_boundary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "self_witness": {
+      "type": "object",
+      "required": ["drafter_was_party", "caveat"],
+      "properties": {
+        "drafter_was_party": {"type": "boolean"},
+        "caveat": {"type": "string"}
+      }
+    },
+    "third_party_context": {
+      "type": "object",
+      "required": ["present", "handling_note"],
+      "properties": {
+        "present": {"type": "boolean"},
+        "handling_note": {"type": "string"}
+      }
+    },
+    "audit": {
+      "type": "object",
+      "required": ["uncertainty_notes", "preserved_exceptions", "flags"],
+      "properties": {
+        "uncertainty_notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "preserved_exceptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["description", "basis"],
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "basis": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "severity", "note"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["info", "caution"]
+              },
+              "note": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "required": ["parents", "corrects", "related", "what_this_adds"],
+      "properties": {
+        "parents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^pkt_[A-Za-z0-9][A-Za-z0-9_.-]{2,127}$"
+          }
+        },
+        "corrects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^pkt_[A-Za-z0-9][A-Za-z0-9_.-]{2,127}$"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^pkt_[A-Za-z0-9][A-Za-z0-9_.-]{2,127}$"
+          }
+        },
+        "what_this_adds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

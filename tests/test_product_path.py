@@ -34,6 +34,18 @@ class ProductPathTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 init_project(root, name="Synthetic test")
 
+    def test_init_witness_is_optional_and_generated_guidance_uses_v2(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "with-witness"
+            init_project(root, name="Synthetic test")
+            guide = (root / "witness/README.md").read_text()
+            self.assertIn("Packet v2 is the default", guide)
+            self.assertIn("--depth quick", guide)
+
+            root2 = Path(td) / "without-witness"
+            init_project(root2, name="Synthetic test", witness=False)
+            self.assertFalse((root2 / "witness").exists())
+
     def test_tiny_example_full_top_level_flow(self):
         example = ROOT / "examples" / "tiny-handoff"
         with tempfile.TemporaryDirectory() as td:

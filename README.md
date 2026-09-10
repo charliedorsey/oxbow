@@ -139,9 +139,11 @@ oxbow witness validate packet.json
 oxbow witness append packet.json --stream my-handoff/witness/stream.json
 ```
 
-Witness separates reports from interpretations, preserves unresolved `overhang`, states whether the drafter was a party to the session, and explicitly flags third-party context.
+Witness packet v2 is the default. It separates reports from typed reads; gives reads explicit status, scope, and declared basis; preserves structured `overhang`; adds a packet-level claim boundary; and optionally carries source anchors, weather, audit exceptions, and lineage. Use `--depth quick`, `--depth standard`, or `--depth deep` to change drafting guidance without changing the v2 wire contract. Legacy packet v1 remains valid and can coexist with v2 in the same stream.
 
-**Witness validates form and declared provenance boundaries, not truth.** Corrections append; prior records are not rewritten. Derived indexes are rebuildable views and never outrank source records.
+A `basis` records where a read points; Oxbow does not establish that the referent supports the claim. A `promoted` read records workstream standing, not truth.
+
+**Witness validates form and declared provenance boundaries, not truth or evidential sufficiency.** Corrections append; prior records are not rewritten. Derived indexes are rebuildable views and never outrank source records.
 
 Format: [`src/oxbow/witness/WITNESS_FORMAT.md`](src/oxbow/witness/WITNESS_FORMAT.md).
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oxbow-bundle"
-version = "0.1.0rc1"
+version = "0.1.0rc2"
 description = "Self-orienting AI handoffs that carry the work without claiming continuity of model instance."
 readme = "README.md"
 requires-python = ">=3.8"

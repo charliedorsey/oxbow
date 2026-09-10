@@ -64,6 +64,7 @@ Do not explain the intended answers first.
 5. At any point did the tool silently omit a file you expected to travel?
 6. Was `HANDOFF.md` enough structure, too much, or too little?
 7. Did Witness feel optional, or did it look required to use Oxbow?
-8. What was the first confusing command or concept?
+8. Did Witness v2's richer fields make the record more understandable, or did they mostly feel like form-filling?
+9. What was the first confusing command or concept?
 
 Record the tester's actual answers before changing the product. The release gate is not “tester eventually succeeded after explanation”; it is whether the documented interface made the intended object legible.

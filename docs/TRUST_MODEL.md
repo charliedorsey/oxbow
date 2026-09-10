@@ -80,3 +80,24 @@ Read-only inspection can be useful without author authentication. Oxbow therefor
 A bundle that will drive tools, writes, external calls, deployments, or other consequential actions should be held to a stronger local policy. `--mode act` is the provided fail-closed starting point; it requires a valid detached signature and an independently pinned public key.
 
 This is a policy boundary, not a claim that signatures make content safe or correct.
+
+## Witness trust boundary
+
+Witness is another place where the word "verified" can overreach.
+
+Packet validation can establish that a record has the declared v1/v2 shape and satisfies Oxbow's structural boundaries. For packet v2, that includes things such as portable ids, typed read status/scope, nonempty basis references, local source-anchor resolution, reconstruction provenance, and backward packet/read lineage during append.
+
+It does **not** establish that:
+
+- the source account is factually accurate;
+- a declared `basis` actually supports the read;
+- a `promoted` read is true;
+- a population-scope read has enough evidence;
+- the drafter's self-witness caveat is complete;
+- a third-party handling note satisfies privacy law or policy.
+
+`source.coverage=full` means full declared source for that Witness record, not complete coverage of reality.
+
+A cross-packet basis or lineage edge says that the new record points to an earlier record. It does not create memory or prove that the same model instance persisted across sessions.
+
+The intended use is modest but useful: make claims easier to catch, scope, challenge, and correct without pretending that structure itself adjudicates truth.

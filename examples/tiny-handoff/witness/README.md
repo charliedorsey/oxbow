@@ -1,6 +1,6 @@
 # Witness write-back
 
-Witness is an optional append-only record for carrying a compact account of a work session into a later handoff. It checks **form and declared provenance boundaries, not truth**.
+Witness is an optional append-only record for carrying a compact account of a work session into a later handoff. It checks **form and declared provenance boundaries, not truth or evidential sufficiency**.
 
 The normal operator flow is:
 
@@ -11,6 +11,10 @@ oxbow witness validate packet.json
 oxbow witness append packet.json --stream witness/stream.json
 ```
 
-A packet must separate `source` (what happened / what was provided) from `reads` (interpretations), preserve `overhang` (what remains open), state whether the drafter was a party to the session, and explicitly flag third-party context when present.
+Packet v2 is the default. Reads have explicit status, scope, and basis; overhang is structured; and every packet states a claim boundary. Source anchors, weather, audit, and lineage are optional.
 
-Records are append-only. Corrections are new records; old records are not rewritten. The stream's `derived_index` is rebuildable and never outranks the records.
+The tiny example intentionally uses a boring middleweight packet: one source anchor, one local interpretation, and one unresolved item. It does not use weather, audit, or lineage because they add nothing here.
+
+Use `--depth quick`, `--depth standard`, or `--depth deep` to change drafting guidance while keeping one v2 packet contract. Legacy packet v1 remains valid through `--packet-version v1`.
+
+A `basis` is a declared referent, not proof. A `promoted` read records workstream standing, not truth. Records are append-only. Corrections are new records; old records are not rewritten. The stream's `derived_index` is rebuildable and never outranks the records.

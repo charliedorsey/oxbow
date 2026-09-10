@@ -20,14 +20,27 @@
       "ingest_order": 1,
       "ingest_timestamp": "2026-01-01T00:01:00Z",
       "packet": {
+        "claim_boundary": "This synthetic packet records the tiny handoff example only; it does not establish that the format is suitable for other projects.",
+        "format": "oxbow-witness-packet-v2",
         "overhang": [
-          "Decide whether blank owners become null or remain empty strings."
+          {
+            "item": "Decide whether blank owners become null or remain empty strings.",
+            "next_test": "Choose one normalization rule and record it in the next decision note.",
+            "overhang_id": "o_blank_owner",
+            "status": "open"
+          }
         ],
         "packet_id": "pkt_format_review",
         "packet_type": "decision-review",
         "reads": [
           {
+            "basis": [
+              "source:decision_002"
+            ],
             "name": "design_direction",
+            "read_id": "r_design_direction",
+            "scope": "local",
+            "status": "interpretation",
             "value": "The pipe format is sufficient for this deliberately tiny demonstration."
           }
         ],
@@ -36,7 +49,15 @@
           "drafter_was_party": true
         },
         "source": {
-          "description": "The example records that Decision 002 supersedes Decision 001 and leaves blank-owner behavior unresolved."
+          "anchors": [
+            {
+              "anchor_id": "decision_002",
+              "description": "The current tiny-example format decision.",
+              "ref": "decisions/002-pipe-format.md"
+            }
+          ],
+          "coverage": "full",
+          "description": "The example records Decision 002 as the current format decision and leaves blank-owner behavior unresolved."
         },
         "third_party_context": {
           "handling_note": "none",

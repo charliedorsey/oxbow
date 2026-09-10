@@ -8,12 +8,13 @@ import sys
 from pathlib import Path
 
 from oxbow.witness.stream import Unlawful as StreamUnlawful, append_packet, new_stream, rebuild_index, validate_stream
-from oxbow.witness.validate import Invalid, Unlawful, check_boundaries, validate_packet
+from oxbow.witness.validate import Invalid, Unlawful, V2_FORMAT, check_boundaries, packet_version, validate_packet
 
 HERE = Path(__file__).resolve().parent
-SCHEMA = HERE / "schemas" / "portable_packet.schema.json"
+V1_SCHEMA = HERE / "schemas" / "portable_packet.schema.json"
+V2_SCHEMA = HERE / "schemas" / "portable_packet_v2.schema.json"
 
-DRAFT_PREAMBLE = """# Write one Oxbow Witness packet for the work session you just participated in
+DRAFT_PREAMBLE_V1 = """# Write one Oxbow Witness packet for the work session you just participated in
 
 Return one JSON object and nothing else.
 
@@ -28,9 +29,133 @@ Rules:
 6. Use a packet id beginning `pkt_`, for example `pkt_2026-09-08_release_review`.
 """
 
+DRAFT_PREAMBLE_V2 = """# Write one Oxbow Witness v2 packet for the work session you just participated in
 
-def _schema(path: str | Path = SCHEMA):
+Return one JSON object and nothing else.
+
+Witness is a handoff record, not a verdict. It checks form and declared provenance boundaries, not factual truth or evidential sufficiency.
+
+Core rules:
+1. `source.description` reports what happened or what material was provided. Put diagnoses, implications, hypotheses, and conclusions in `reads`.
+2. Every read has a `status`, `scope`, and at least one `basis` reference. A basis records what the drafter points to; Oxbow does not certify that the referent supports the claim.
+3. Read status is one of: `observation`, `interpretation`, `candidate`, `promoted`, `abstention`. `promoted` means promoted by this workstream, not certified true by Oxbow.
+4. Read scope is one of: `local`, `cross_packet`, `population`. Candidate/promoted reads and cross-packet/population reads need an explicit `boundary`.
+5. Basis grammar: `source`, `source:<anchor_id>`, `packet:<packet_id>`, `packet:<packet_id>#<read_id>`, or `external:<opaque referent>`.
+6. `source.coverage` is one of: `full`, `selective`, `reconstructed`, `mixed`. Here `full` means full declared source for this Witness, not omniscient coverage of reality. Reconstructed/mixed coverage needs a provenance note explaining the reconstruction.
+7. `overhang` preserves genuinely unresolved work. Status is one of: `open`, `blocked`, `deferred`, `watch`.
+8. Use an `abstention` read when the material does not earn a conclusion. Preserve important contradictory or rare evidence under `audit.preserved_exceptions` when useful.
+9. `weather`, `audit`, and `lineage` are optional. Omit them when they carry no information.
+10. `self_witness.drafter_was_party` states whether you participated in the session. If true, name a real limitation in `caveat`.
+11. `third_party_context.present` is true if the record contains material about or from a person who is not the operator/drafter. If true, use `handling_note` to state only the review/redaction/consent/public-source status actually known. Do not fabricate permission.
+12. Cross-packet reads are lawful only when the earlier packet content is actually available to the drafter. Cite the earlier packet in `basis`. Packet IDs by themselves are navigation, not evidence.
+13. Corrections append. Do not rewrite earlier Witness records.
+14. Use a packet id beginning `pkt_`, for example `pkt_2026-09-09_release_review`.
+"""
+
+DEPTH_GUIDANCE = {
+    "quick": """## Draft depth: quick
+
+Keep this small. A concise source, a few typed reads, structured overhang, the packet claim boundary, self-witness, and third-party handling are enough. `basis: [\"source\"]` is valid when finer anchors add no value. Omit anchors, weather, audit, and lineage unless they materially improve the handoff.
+""",
+    "standard": """## Draft depth: standard
+
+Use source anchors for consequential claims when a useful local referent exists. Prefer specific basis references over `source` when they improve catchability. Include weather only when the condition of the work matters. Use lineage when this packet continues, corrects, or materially relates to an earlier available packet. Preserve exceptions and explicit abstentions when they prevent overclaiming.
+""",
+    "deep": """## Draft depth: deep
+
+Use the richer optional structure when the session is long, consequential, recursive, or cross-packet. Favor explicit source anchors, multiple basis references, cross-packet reads, lineage, preserved exceptions, uncertainty notes, and population abstentions where warranted. Richness should come from populating this stable packet format, not inventing a new dialect.
+""",
+}
+
+
+def _v2_skeleton(depth):
+    base = {
+        "format": V2_FORMAT,
+        "packet_id": "pkt_<portable_label>",
+        "packet_type": "<free genre label>",
+        "source": {
+            "description": "<factual report of what happened or what material was provided>",
+            "coverage": "full",
+        },
+        "reads": [
+            {
+                "read_id": "r1",
+                "name": "<explicit read name>",
+                "status": "interpretation",
+                "scope": "local",
+                "value": "<interpretation or structured value>",
+                "basis": ["source"],
+            }
+        ],
+        "overhang": [
+            {
+                "overhang_id": "o1",
+                "item": "<genuinely unresolved work>",
+                "status": "open",
+            }
+        ],
+        "claim_boundary": "<what this packet does not establish>",
+        "self_witness": {
+            "drafter_was_party": True,
+            "caveat": "<real limitation created by the drafter's position>",
+        },
+        "third_party_context": {
+            "present": False,
+            "handling_note": "none",
+        },
+    }
+    if depth in ("standard", "deep"):
+        base["source"]["provenance_notes"] = ["<important provenance note when needed>"]
+        base["source"]["anchors"] = [
+            {
+                "anchor_id": "a1",
+                "ref": "<turn, file, section, artifact, or other local pointer>",
+                "description": "<what this anchor points to>",
+            }
+        ]
+        base["reads"][0]["basis"] = ["source:a1"]
+        base["reads"][0]["boundary"] = "<optional for local interpretation; required for stronger status/scope>"
+        base["reads"][0]["notes"] = ["<optional qualification>"]
+        base["weather"] = [
+            {
+                "label": "<compact condition label>",
+                "basis": ["source:a1"],
+                "reason": "<why the condition matters to this record>",
+            }
+        ]
+        base["overhang"][0]["next_test"] = "<optional next discriminating action>"
+        base["lineage"] = {
+            "parents": [],
+            "corrects": [],
+            "related": [],
+            "what_this_adds": [],
+        }
+    if depth == "deep":
+        base["audit"] = {
+            "uncertainty_notes": ["<uncertainty worth preserving>"],
+            "preserved_exceptions": [
+                {
+                    "description": "<important evidence that does not fit the dominant read>",
+                    "basis": ["source:a1"],
+                }
+            ],
+            "flags": [
+                {
+                    "code": "<open flag code>",
+                    "severity": "caution",
+                    "note": "<why this flag matters>",
+                }
+            ],
+        }
+    return base
+
+
+def _schema(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _builtin_schema_path(version):
+    return V1_SCHEMA if version == "v1" else V2_SCHEMA
 
 
 def _write_json(path: Path, doc: dict):
@@ -49,16 +174,65 @@ def cmd_init(a):
     return 0
 
 
+def _stream_prompt_state(stream, *, allow_cross_packet):
+    if not allow_cross_packet:
+        return (
+            "\n## Stream state (form only)\n\n"
+            "Existing record count: %d. Do not compare this session to prior records.\n"
+            % len(stream["records"])
+        )
+
+    pids = [
+        (rec.get("packet") or {}).get("packet_id")
+        for rec in stream["records"][-20:]
+        if (rec.get("packet") or {}).get("packet_id")
+    ]
+    lines = [
+        "\n## Stream state (lineage navigation only)\n",
+        "Existing record count: %d." % len(stream["records"]),
+    ]
+    if pids:
+        lines.append("Recent packet IDs (most recent 20 at most):")
+        lines.extend("- %s" % pid for pid in pids)
+    else:
+        lines.append("No earlier packet IDs are present.")
+    lines.append(
+        "These IDs establish possible lineage targets only. Do not infer facts from a packet name or its existence. "
+        "Use a packet in `basis` only if its actual content was available to you."
+    )
+    return "\n".join(lines) + "\n"
+
+
 def cmd_draft(a):
-    parts = [DRAFT_PREAMBLE, "\n## Required JSON shape\n\n```json\n" + json.dumps(_schema(a.schema), indent=2) + "\n```\n"]
+    if a.schema:
+        parts = [
+            DRAFT_PREAMBLE_V1,
+            "\n## Custom required JSON shape\n\n```json\n" + json.dumps(_schema(a.schema), indent=2) + "\n```\n",
+        ]
+        allow_cross_packet = False
+    elif a.packet_version == "v1":
+        if a.depth != "standard":
+            print("error: --depth applies to packet v2 only", file=sys.stderr)
+            return 2
+        parts = [
+            DRAFT_PREAMBLE_V1,
+            "\n## Required JSON shape\n\n```json\n" + json.dumps(_schema(V1_SCHEMA), indent=2) + "\n```\n",
+        ]
+        allow_cross_packet = False
+    else:
+        parts = [
+            DRAFT_PREAMBLE_V2,
+            DEPTH_GUIDANCE[a.depth],
+            "\n## Packet skeleton\n\nOptional sections shown by this depth may be omitted when they carry no information.\n\n```json\n"
+            + json.dumps(_v2_skeleton(a.depth), indent=2)
+            + "\n```\n",
+        ]
+        allow_cross_packet = True
+
     if a.stream:
         st = json.loads(Path(a.stream).read_text(encoding="utf-8"))
         validate_stream(st)
-        parts.append(
-            "\n## Stream state (form only)\n\n"
-            "Existing record count: %d. Do not compare this session to prior records.\n"
-            % len(st["records"])
-        )
+        parts.append(_stream_prompt_state(st, allow_cross_packet=allow_cross_packet))
     out = "\n".join(parts)
     if a.out:
         Path(a.out).write_text(out, encoding="utf-8")
@@ -68,8 +242,13 @@ def cmd_draft(a):
     return 0
 
 
-def _validate(packet, schema_path):
-    validate_packet(packet, _schema(schema_path))
+def _validate(packet, schema_path=None):
+    if schema_path:
+        schema = _schema(schema_path)
+    else:
+        version = packet_version(packet)
+        schema = _schema(_builtin_schema_path(version))
+    validate_packet(packet, schema)
     return check_boundaries(packet)
 
 
@@ -164,19 +343,21 @@ def main(argv=None):
     d = sub.add_parser("draft", help="emit a prompt asking the current model for one packet")
     d.add_argument("--out")
     d.add_argument("--stream")
-    d.add_argument("--schema", default=str(SCHEMA))
+    d.add_argument("--schema", help="use a custom packet schema instead of the built-in v1/v2 contract")
+    d.add_argument("--packet-version", choices=("v1", "v2"), default="v2")
+    d.add_argument("--depth", choices=("quick", "standard", "deep"), default="standard")
     d.set_defaults(fn=cmd_draft)
 
     v = sub.add_parser("validate", help="check one packet's shape and declared boundaries")
     v.add_argument("packet")
-    v.add_argument("--schema", default=str(SCHEMA))
+    v.add_argument("--schema", help="validate against a custom packet schema")
     v.set_defaults(fn=cmd_validate)
 
     p = sub.add_parser("append", help="validate and append one packet without rewriting prior records")
     p.add_argument("packet")
     p.add_argument("--stream", required=True)
     p.add_argument("--out")
-    p.add_argument("--schema", default=str(SCHEMA))
+    p.add_argument("--schema", help="validate against a custom packet schema")
     p.set_defaults(fn=cmd_append)
 
     r = sub.add_parser("rebuild", help="recompute the derived index from source records")

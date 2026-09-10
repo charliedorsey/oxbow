@@ -62,14 +62,26 @@ def main():
             assert not ed25519.verify(sig, payload + b"x", pk)
             _ok("Ed25519 positive/negative path")
 
-            schema_path = Path(__file__).parent / "witness" / "schemas" / "portable_packet.schema.json"
+            schema_path = Path(__file__).parent / "witness" / "schemas" / "portable_packet_v2.schema.json"
             schema = json.loads(schema_path.read_text())
             packet = {
+                "format": "oxbow-witness-packet-v2",
                 "packet_id": "pkt_2099-01-01_synthetic",
                 "packet_type": "session",
-                "source": {"description": "A synthetic package selftest session completed."},
-                "reads": [{"name": "status", "value": "ready"}],
+                "source": {
+                    "description": "A synthetic package selftest session completed.",
+                    "coverage": "full",
+                },
+                "reads": [{
+                    "read_id": "r_status",
+                    "name": "status",
+                    "status": "observation",
+                    "scope": "local",
+                    "value": "ready",
+                    "basis": ["source"],
+                }],
                 "overhang": [],
+                "claim_boundary": "The selftest checks the synthetic package path only.",
                 "self_witness": {
                     "drafter_was_party": True,
                     "caveat": "This synthetic drafter only observed the selftest path."
@@ -82,7 +94,7 @@ def main():
             stream2 = append_packet(stream, packet)
             assert len(stream2["records"]) == 1
             assert rebuild_index(stream2) == stream2["derived_index"]
-            _ok("Witness validate/append/rebuild")
+            _ok("Witness v2 validate/append/rebuild")
 
         print("OXBOW SELFTEST: ALL PASS")
         return 0
